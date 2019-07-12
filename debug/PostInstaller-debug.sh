@@ -595,7 +595,7 @@ sleep 0.1
 SET_ERROR_REPORT(){
 sudo mv /System/Library/LaunchAgents/com.apple.ReportCrash.plist.back /System/Library/LaunchAgents/com.apple.ReportCrash.plist  >> debug.txt 2> debug.txt
 sudo mv /System/Library/LaunchDaemons/com.apple.ReportCrash.Root.plist.back /System/Library/LaunchDaemons/com.apple.ReportCrash.Root.plist  >> debug.txt 2> debug.txt
-#sudo launchctl load -w /System/Library/LaunchAgents/com.apple.ReportCrash.plist
+sudo launchctl load -w /System/Library/LaunchAgents/com.apple.ReportCrash.plist >> debug.txt 2> debug.txt
 sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.ReportCrash.Root.plist  >> debug.txt 2> debug.txt
 }
 
@@ -682,6 +682,7 @@ sudo mv /System/Library/LaunchAgents/com.apple.MRTa.plist /System/Library/Launch
 SET_MRT(){
 if [[ -f /System/Library/LaunchAgents/com.apple.MRTa.plist.bak ]]; then 
          sudo mv /System/Library/LaunchAgents/com.apple.MRTa.plist.bak /System/Library/LaunchAgents/com.apple.MRTa.plist >> debug.txt 2> debug.txt
+         sudo launchctl load -w /System/Library/LaunchAgents/com.apple.MRTa.plist >> debug.txt 2> debug.txt
 fi
 if [[ -d /System/Library/CoreServices/MRT.app.bak ]]; then
        sudo mv /System/Library/CoreServices/MRT.app.bak /System/Library/CoreServices/MRT.app >> debug.txt 2> debug.txt
