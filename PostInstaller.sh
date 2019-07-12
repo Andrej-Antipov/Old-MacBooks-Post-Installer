@@ -43,15 +43,16 @@ printf '     \n\n\e[0m'
 
 csrset=$(csrutil status | grep "status:" | grep -ow "disabled")
 if [[ ! $csrset = "disabled" ]]; then
-        printf '               !!!   Защита целостности системы включена     !!!\n\n'
-		echo "               !!!    Продолжение установки невозможно"
-		echo "               !!!    Патч Continuity не сработает"
-		echo "               !!!    Загрузитесь в Recovery"
-		echo "               !!!    Запустите утилиту терминала и выполните"
-		echo "               !!!    команду csrutil disable"
-		echo "               !!!    после перезагрузки запустите программу еще раз"
-		printf '\n\n'
-		read -p "Для выхода нажмите любую клавишу" -n 1 -r
+        printf '           \e[1;31m!!!\e[0m   \e[1;36m Защита целостности системы включена\e[0m              \e[1;31m!!!\e[0m\n\n'
+		printf '           \e[1;31m!!!\e[0m    \e[33mПродолжение установки невозможно\e[0m                 \e[1;31m!!!\e[0m\n'
+		printf '           \e[1;31m!!!\e[0m    \e[33mПатч Continuity не сработает\e[0m                     \e[1;31m!!!\e[0m\n'
+		printf '           \e[1;31m!!!\e[0m    \e[33mЗагрузитесь в Recovery\e[0m                           \e[1;31m!!!\e[0m\n'
+		printf '           \e[1;31m!!!\e[0m    \e[33mЗапустите утилиту терминала и выполните\e[0m          \e[1;31m!!!\e[0m\n'
+		printf '           \e[1;31m!!!\e[0m    \e[33mкоманду csrutil disable\e[0m                          \e[1;31m!!!\e[0m\n'
+		printf '           \e[1;31m!!!\e[0m    \e[33mпосле перезагрузки запустите программу еще раз\e[0m   \e[1;31m!!!\e[0m\n'
+		printf '\n'
+        printf '                  \e[1;36mДля выхода нажмите любую клавишу.  \e[0m'
+		read  -n 1 -s
         clear
         osascript -e 'tell application "Terminal" to close first window' & exit
 fi 
