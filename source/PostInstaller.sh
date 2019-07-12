@@ -559,19 +559,19 @@ if [[ -f /System/Library/LaunchDaemons/com.apple.tailspind.plist ]]; then spin_c
 }
 
 UNSET_SPINDUMP(){
-sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.spindump.plist
-sudo mv /System/Library/LaunchDaemons/com.apple.spindump.plist /System/Library/LaunchDaemons/com.apple.spindump.plist.bak
-sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.tailspind.plist
-sudo mv /System/Library/LaunchDaemons/com.apple.tailspind.plist /System/Library/LaunchDaemons/com.apple.tailspind.plist.bak
+sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.spindump.plist >&- 2>&-
+sudo mv /System/Library/LaunchDaemons/com.apple.spindump.plist /System/Library/LaunchDaemons/com.apple.spindump.plist.bak >&- 2>&-
+sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.tailspind.plist >&- 2>&-
+sudo mv /System/Library/LaunchDaemons/com.apple.tailspind.plist /System/Library/LaunchDaemons/com.apple.tailspind.plist.bak >&- 2>&-
 sleep 0.1
 
 }
 
 SET_SPINDUMP(){
-sudo mv /System/Library/LaunchDaemons/com.apple.spindump.plist.bak /System/Library/LaunchDaemons/com.apple.spindump.plist
-sudo mv /System/Library/LaunchDaemons/com.apple.tailspind.plist.bak /System/Library/LaunchDaemons/com.apple.tailspind.plist
-sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.spindump.plist
-sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.tailspind.plist
+sudo mv /System/Library/LaunchDaemons/com.apple.spindump.plist.bak /System/Library/LaunchDaemons/com.apple.spindump.plist >&- 2>&-
+sudo mv /System/Library/LaunchDaemons/com.apple.tailspind.plist.bak /System/Library/LaunchDaemons/com.apple.tailspind.plist >&- 2>&-
+sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.spindump.plist >&- 2>&-
+sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.tailspind.plist >&- 2>&-
 sleep 0.1
 }
 
@@ -670,23 +670,23 @@ if [[ $mrt = 1 ]]; then mrt_chk="не сделано"; else mrt_chk="сдела�
 
 UNSET_MRT(){
 if [[ $(sudo ps xca | grep MRT | grep -oE '[^ ]+$' | tr -d " \n") = "MRT" ]]; then sudo killall MRT ; fi 2>&-
-sudo mv /System/Library/CoreServices/MRT.app /System/Library/CoreServices/MRT.app.bak
-sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.MRTd.plist 
+sudo mv /System/Library/CoreServices/MRT.app /System/Library/CoreServices/MRT.app.bak >&- 2>&-
+sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.MRTd.plist >&- 2>&-
 sudo launchctl unload -w /System/Library/LaunchAgents/com.apple.MRTa.plist  >&- 2>&-
-sudo mv /System/Library/LaunchDaemons/com.apple.MRTd.plist /System/Library/LaunchDaemons/com.apple.MRTd.plist.bak
-sudo mv /System/Library/LaunchAgents/com.apple.MRTa.plist /System/Library/LaunchAgents/com.apple.MRTa.plist.bak
+sudo mv /System/Library/LaunchDaemons/com.apple.MRTd.plist /System/Library/LaunchDaemons/com.apple.MRTd.plist.bak >&- 2>&-
+sudo mv /System/Library/LaunchAgents/com.apple.MRTa.plist /System/Library/LaunchAgents/com.apple.MRTa.plist.bak >&- 2>&-
 }
 
 SET_MRT(){
 if [[ -f /System/Library/LaunchAgents/com.apple.MRTa.plist.bak ]]; then 
-         sudo mv /System/Library/LaunchAgents/com.apple.MRTa.plist.bak /System/Library/LaunchAgents/com.apple.MRTa.plist
+         sudo mv /System/Library/LaunchAgents/com.apple.MRTa.plist.bak /System/Library/LaunchAgents/com.apple.MRTa.plist >&- 2>&-
 fi
 if [[ -d /System/Library/CoreServices/MRT.app.bak ]]; then
-       sudo mv /System/Library/CoreServices/MRT.app.bak /System/Library/CoreServices/MRT.app
+       sudo mv /System/Library/CoreServices/MRT.app.bak /System/Library/CoreServices/MRT.app >&- 2>&-
 fi
 if [[ -f /System/Library/LaunchDaemons/com.apple.MRTd.plist.bak ]]; then 
-        sudo mv /System/Library/LaunchDaemons/com.apple.MRTd.plist.bak /System/Library/LaunchDaemons/com.apple.MRTd.plist
-        sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.MRTd.plist
+        sudo mv /System/Library/LaunchDaemons/com.apple.MRTd.plist.bak /System/Library/LaunchDaemons/com.apple.MRTd.plist >&- 2>&-
+        sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.MRTd.plist >&- 2>&-
 fi
 sleep 1
 if [[ $(sudo ps xca | grep MRT | grep -oE '[^ ]+$' | tr -d " \n") = "MRT" ]]; then sudo killall MRT ; fi 2>&-

@@ -32,7 +32,7 @@
 	<key>CFBundleExecutable</key>
 	<string>Application Stub</string>
 	<key>CFBundleIconFile</key>
-	<string>AutomatorApplet</string>
+	<string>Evermor-Design-Galaxian-Mac</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.apple.automator.Post_Installer</string>
 	<key>CFBundleInfoDictionaryVersion</key>
