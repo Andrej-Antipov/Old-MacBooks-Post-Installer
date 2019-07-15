@@ -29,9 +29,11 @@ osascript -e "tell application \"Terminal\" to set normal text color of window 1
 lines=33
 printf '\e[8;'${lines}';80t' && printf '\e[3J' && printf "\033[0;0H"
 
+printf "\033[?25l"
+
 printf '\e[2m************** \e[0m\e[36mНастройка после установки мак ос на макбук 6,1/7,1\e[0m\e[2m **************\e[0m\n'
 printf '\e[2m****** \e[0m\e[36mНаличие модуля Bluetooth HCI 4.0+ c LE для continuity обязательно\e[0m\e[2m *******\e[0m\n'
-printf '\e[2m**************.................. \e[0m\e[36mВерсия 1,1\e[0m\e[2m ......................**************\e[0m\n'
+printf '\e[2m**************.................. \e[0m\e[36mВерсия 1,2\e[0m\e[2m ......................**************\e[0m\n'
 
 printf '\n\e[2m                       Версия '
 printf "`sw_vers -productName`"
@@ -77,7 +79,6 @@ fi
 }
 
 GET_AUTH(){
-cd $(dirname $0)
 if [[ -f ~/.auth/auth.plist ]]; then
       login=`cat ~/.auth/auth.plist | grep -Eo "LoginPassword"  | tr -d '\n'`
     if [[ $login = "LoginPassword" ]]; then
@@ -94,6 +95,7 @@ if [[ $PASSWORD = "" ]]; then GET_AUTH; fi
 
 if [[ ! $PASSWORD = "" ]]; then
     if echo $PASSWORD | sudo -Sk printf '' 2>/dev/null; then
+    if [[ $init_password = 1 ]]; then init_password=0; fi
         printf '\r                                       \r'
         echo "  Пароль из программы принят"
     else
@@ -125,11 +127,13 @@ else
     printf ' %.0s' {1..80}; printf ' %.0s' {1..80}
     printf ' %.0s' {1..80}; printf ' %.0s' {1..80}
     printf '\r\033[4A'
+  if [[ ! $init_password = 1 ]]; then
     let "attempt--"
     if [[ $attempt = 0 ]]; then
         PASSWORD=""
         var=1
     fi
+  fi
 fi
 else
     printf '\r'
@@ -183,8 +187,10 @@ done
 if [[ ! $keyboard = "0" ]]; then ./tools/xkbswitch -se $keyboard; fi
    else
         
-printf '\r!!! Смените раскладку на латиницу !!! \n'
-          
+printf '\r               \e[1;33;5m!!!  Смените раскладку на латиницу   !!!\e[0m               '
+read -t 2 -s 
+printf '\r                                        \r'
+       
  fi
 fi
 }
@@ -259,7 +265,7 @@ esac
 
 if [[ $legal = 0 ]]; then continuity=1
         else
-scontinuity=`defaults read /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist | grep -A 1 "$board" | grep ContinuitySupport`
+scontinuity=`defaults read /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist | grep -A 1 "$board" | grep ContinuitySupport` >&- 2>&-
 continuity=`echo ${scontinuity//[^0-1]/}`
 fi
 if [[ $continuity = 1 ]]; then bt_check="сделано"; else bt_check="не сделано"; fi
@@ -272,9 +278,9 @@ cache_update=0
     if [[ $legal = 0 ]]; then sleep 0.1
         else 
             if [[ $continuity = 0 ]]; then 
-               cp /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist ~/.
-               plutil -replace  $board.ContinuitySupport  -bool YES ~/SystemParameters.plist
-               sudo cp ~/SystemParameters.plist /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist
+               cp /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist ~/.                           >&- 2>&-
+               plutil -replace  $board.ContinuitySupport  -bool YES ~/SystemParameters.plist                                                 >&- 2>&-
+               sudo cp ~/SystemParameters.plist /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist >&- 2>&-
                 rm -f ~/SystemParameters.plist
                 cache_update=1
             fi
@@ -291,9 +297,9 @@ UNSET_WHITELIST(){
 if [[ $legal = 0 ]]; then sleep 0.1
         else 
             if [[ $continuity = 1 ]]; then 
-               cp /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist ~/.
-               plutil -replace  $board.ContinuitySupport  -bool NO ~/SystemParameters.plist
-               sudo cp ~/SystemParameters.plist /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist
+               cp /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist ~/.                              >&- 2>&-
+               plutil -replace  $board.ContinuitySupport  -bool NO ~/SystemParameters.plist                                                     >&- 2>&-
+               sudo cp ~/SystemParameters.plist /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist    >&- 2>&-
                 rm -f ~/SystemParameters.plist
                 cache_update=1
             fi
@@ -567,47 +573,72 @@ ready=1
 
 CHECK_SPINDUMP(){
 spin_check="остановлены"
-if [[ -f /System/Library/LaunchDaemons/com.apple.spindump.plist ]]; then spin_check="не остановлены"; fi
-if [[ -f /System/Library/LaunchDaemons/com.apple.tailspind.plist ]]; then spin_check="не остановлены"; fi
+if [[  $(launchctl list | grep "com.apple.spindump_agent" | cut -f3 | grep -x "com.apple.spindump_agent") ]]; then spin_check="не остановлены"; fi
+if [[  $(sudo launchctl list | grep "com.apple.spindump" | cut -f3 | grep -x "com.apple.spindump") ]]; then spin_check="не остановлены"; fi
+if [[  $(sudo launchctl list | grep "com.apple.tailspind" | cut -f3 | grep -x "com.apple.tailspind") ]]; then spin_check="не остановлены"; fi
+
 }
 
 UNSET_SPINDUMP(){
-sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.spindump.plist >&- 2>&-
-sudo mv /System/Library/LaunchDaemons/com.apple.spindump.plist /System/Library/LaunchDaemons/com.apple.spindump.plist.bak >&- 2>&-
-sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.tailspind.plist >&- 2>&-
-sudo mv /System/Library/LaunchDaemons/com.apple.tailspind.plist /System/Library/LaunchDaemons/com.apple.tailspind.plist.bak >&- 2>&-
+if [[  $(launchctl list | grep com.apple.spindump_agent) ]]; then launchctl unload -w /System/Library/LaunchAgents/com.apple.spindump_agent.plist; fi 
+if [[  $(sudo launchctl list | grep "com.apple.spindump" | cut -f3 | grep -x "com.apple.spindump") ]]; then sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.spindump.plist; fi 
+if [[  $(sudo launchctl list | grep "com.apple.tailspind" | cut -f3 | grep -x "com.apple.tailspind") ]]; then sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.tailspind.plist; fi 
 sleep 0.1
 
 }
 
 SET_SPINDUMP(){
-sudo mv /System/Library/LaunchDaemons/com.apple.spindump.plist.bak /System/Library/LaunchDaemons/com.apple.spindump.plist >&- 2>&-
-sudo mv /System/Library/LaunchDaemons/com.apple.tailspind.plist.bak /System/Library/LaunchDaemons/com.apple.tailspind.plist >&- 2>&-
-sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.spindump.plist >&- 2>&-
-sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.tailspind.plist >&- 2>&-
+if [[ ! -f /System/Library/LaunchDaemons/com.apple.spindump.plist ]]; then
+  if [[  -f /System/Library/LaunchDaemons/com.apple.spindump.plist.bak ]]; then
+        sudo mv /System/Library/LaunchDaemons/com.apple.spindump.plist.bak /System/Library/LaunchDaemons/com.apple.spindump.plist
+  fi
+fi
+
+if [[ -f /System/Library/LaunchDaemons/com.apple.spindump.plist ]]; then
+    sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.spindump.plist; fi
+
+if [[ ! -f /System/Library/LaunchDaemons/com.apple.tailspind.plist ]]; then
+  if [[  -f /System/Library/LaunchDaemons/com.apple.tailspind.plist.bak ]]; then
+        sudo mv /System/Library/LaunchDaemons/com.apple.tailspind.plist.bak /System/Library/LaunchDaemons/com.apple.tailspind.plist
+  fi
+fi
+
+if [[ -f /System/Library/LaunchDaemons/com.apple.tailspind.plist ]]; then
+    sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.tailspind.plist; fi
 sleep 0.1
 }
 
 CHECK_ERROR_REPORT(){
 err_check="сделано"
-if [[ -f /System/Library/LaunchAgents/com.apple.ReportCrash.plist ]]; then err_check="не сделано"; fi
-if [[ -f /System/Library/LaunchDaemons/com.apple.ReportCrash.Root.plist ]]; then err_check="не сделано"; fi
+if [[  $(launchctl list | grep  "com.apple.ReportCrash" | cut -f3 | grep -x "com.apple.ReportCrash") ]]; then err_check="не сделано"; fi
+if [[  $(sudo launchctl list | grep  "com.apple.ReportCrash.Root" | cut -f3 | grep -x "com.apple.ReportCrash.Root") ]]; then err_check="не сделано"; fi
 
 }
 
 UNSET_ERROR_REPORT(){
-sudo launchctl unload -w /System/Library/LaunchAgents/com.apple.ReportCrash.plist  >&- 2>&-
-sudo mv /System/Library/LaunchAgents/com.apple.ReportCrash.plist /System/Library/LaunchAgents/com.apple.ReportCrash.plist.back  >&- 2>&-
-sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.ReportCrash.Root.plist  >&- 2>&-
-sudo mv /System/Library/LaunchDaemons/com.apple.ReportCrash.Root.plist /System/Library/LaunchDaemons/com.apple.ReportCrash.Root.plist.back  >&- 2>&-
+if [[  $(launchctl list | grep  "com.apple.ReportCrash" | cut -f3 | grep -x "com.apple.ReportCrash") ]]; then 
+    launchctl unload -w /System/Library/LaunchAgents/com.apple.ReportCrash.plist; fi
+if [[  $(sudo launchctl list | grep  "com.apple.ReportCrash.Root" | cut -f3 | grep -x "com.apple.ReportCrash.Root") ]]; then
+    sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.ReportCrash.Root.plist
+fi
 sleep 0.1
 }
 
 SET_ERROR_REPORT(){
-sudo mv /System/Library/LaunchAgents/com.apple.ReportCrash.plist.back /System/Library/LaunchAgents/com.apple.ReportCrash.plist  >&- 2>&-
-sudo mv /System/Library/LaunchDaemons/com.apple.ReportCrash.Root.plist.back /System/Library/LaunchDaemons/com.apple.ReportCrash.Root.plist  >&- 2>&-
-sudo launchctl load -w /System/Library/LaunchAgents/com.apple.ReportCrash.plist
-sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.ReportCrash.Root.plist  >&- 2>&-
+if [[ ! -f /System/Library/LaunchAgents/com.apple.ReportCrash.plist ]]; then
+        if [[ -f /System/Library/LaunchAgents/com.apple.ReportCrash.plist.back ]]; then
+            sudo mv /System/Library/LaunchAgents/com.apple.ReportCrash.plist.back /System/Library/LaunchAgents/com.apple.ReportCrash.plist
+        fi    
+fi
+
+if [[ ! -f /System/Library/LaunchDaemons/com.apple.ReportCrash.Root.plist ]]; then
+        if [[ -f /System/Library/LaunchDaemons/com.apple.ReportCrash.Root.plist.back ]]; then
+            sudo mv /System/Library/LaunchDaemons/com.apple.ReportCrash.Root.plist.back /System/Library/LaunchDaemons/com.apple.ReportCrash.Root.plist
+        fi    
+fi
+
+if [[ -f /System/Library/LaunchDaemons/com.apple.ReportCrash.Root.plist ]]; then
+        sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.ReportCrash.Root.plist ; fi 
 }
 
 CHECK_DASH(){
@@ -675,34 +706,43 @@ sleep 0.1
 
 CHECK_MRT(){
 mrt=0
-if [[ -f /System/Library/LaunchDaemons/com.apple.MRTd.plist ]]; then mrt=1; fi
-if [[ -d /System/Library/CoreServices/MRT.app ]]; then mrt=1; fi
-if [[ -f /System/Library/LaunchAgents/com.apple.MRTa.plist ]]; then mrt=1; fi
+
+if [[  $(launchctl list | grep  "MRTa" | cut -f3 | grep -x "com.apple.MRTa") ]]; then mrt=1; fi
+if [[  $(sudo launchctl list | grep  "MRTd" | cut -f3 | grep -x "com.apple.MRTd") ]]; then mrt=1; fi
 if [[ $mrt = 1 ]]; then mrt_chk="не сделано"; else mrt_chk="сделано"; fi
 }
 
 UNSET_MRT(){
 if [[ $(sudo ps xca | grep MRT | grep -oE '[^ ]+$' | tr -d " \n") = "MRT" ]]; then sudo killall MRT ; fi 2>&-
-sudo mv /System/Library/CoreServices/MRT.app /System/Library/CoreServices/MRT.app.bak >&- 2>&-
-sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.MRTd.plist >&- 2>&-
-sudo launchctl unload -w /System/Library/LaunchAgents/com.apple.MRTa.plist  >&- 2>&-
-sudo mv /System/Library/LaunchDaemons/com.apple.MRTd.plist /System/Library/LaunchDaemons/com.apple.MRTd.plist.bak >&- 2>&-
-sudo mv /System/Library/LaunchAgents/com.apple.MRTa.plist /System/Library/LaunchAgents/com.apple.MRTa.plist.bak >&- 2>&-
+if [[  $(launchctl list | grep  "MRTa" | cut -f3 | grep -x "com.apple.MRTa") ]]; then
+        launchctl unload -w /System/Library/LaunchAgents/com.apple.MRTa.plist; fi
+if [[  $(sudo launchctl list | grep  "MRTd" | cut -f3 | grep -x "com.apple.MRTd") ]]; then
+        sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.MRTd.plist; fi
 }
 
 SET_MRT(){
-if [[ -f /System/Library/LaunchAgents/com.apple.MRTa.plist.bak ]]; then 
-         sudo mv /System/Library/LaunchAgents/com.apple.MRTa.plist.bak /System/Library/LaunchAgents/com.apple.MRTa.plist >&- 2>&-
-         sudo launchctl load -w /System/Library/LaunchAgents/com.apple.MRTa.plist >&- 2>&-
+if [[ ! -f /System/Library/LaunchAgents/com.apple.MRTa.plist ]]; then 
+        if [[ -f /System/Library/LaunchAgents/com.apple.MRTa.plist.bak ]]; then
+                sudo mv /System/Library/LaunchAgents/com.apple.MRTa.plist.bak /System/Library/LaunchAgents/com.apple.MRTa.plist
+        fi
 fi
-if [[ -d /System/Library/CoreServices/MRT.app.bak ]]; then
-       sudo mv /System/Library/CoreServices/MRT.app.bak /System/Library/CoreServices/MRT.app >&- 2>&-
+
+if [[ ! -d /System/Library/CoreServices/MRT.app ]]; then
+        if [[ -d /System/Library/CoreServices/MRT.app.bak ]]; then
+             sudo mv /System/Library/CoreServices/MRT.app.bak /System/Library/CoreServices/MRT.app
+        fi
 fi
-if [[ -f /System/Library/LaunchDaemons/com.apple.MRTd.plist.bak ]]; then 
-        sudo mv /System/Library/LaunchDaemons/com.apple.MRTd.plist.bak /System/Library/LaunchDaemons/com.apple.MRTd.plist >&- 2>&-
-        sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.MRTd.plist >&- 2>&-
+
+if [[ ! -f /System/Library/LaunchDaemons/com.apple.MRTd.plist ]]; then
+        if [[ -f /System/Library/LaunchDaemons/com.apple.MRTd.plist.bak ]]; then 
+            sudo mv /System/Library/LaunchDaemons/com.apple.MRTd.plist.bak /System/Library/LaunchDaemons/com.apple.MRTd.plist
+        fi
 fi
-sleep 1
+
+if [[ -f /System/Library/LaunchDaemons/com.apple.MRTd.plist ]]; then
+         sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.MRTd.plist
+fi
+sleep 0.5
 if [[ $(sudo ps xca | grep MRT | grep -oE '[^ ]+$' | tr -d " \n") = "MRT" ]]; then sudo killall MRT ; fi 2>&-
 }
 
@@ -743,7 +783,7 @@ printf '\e[8;'${lines}';80t' && printf '\e[3J' && printf "\033[0;0H"
 
 printf '\e[2m************** \e[0m\e[36mНастройка после установки мак ос на макбук 6,1/7,1\e[0m\e[2m **************\e[0m\n'
 printf '\e[2m****** \e[0m\e[36mНаличие модуля Bluetooth HCI 4.0+ c LE для continuity обязательно\e[0m\e[2m *******\e[0m\n'
-printf '\e[2m**************.................. \e[0m\e[36mВерсия 1,1\e[0m\e[2m ......................**************\e[0m\n'
+printf '\e[2m**************.................. \e[0m\e[36mВерсия 1,2\e[0m\e[2m ......................**************\e[0m\n'
 
 printf '\n\e[2m                       Версия '
 printf "`sw_vers -productName`"
@@ -766,13 +806,12 @@ printf '          \e[1;33m2.\e[0m Разрешение сценария Continui
 printf '          \e[1;33m3.\e[0m Дамперы процессов spindump и tailspin \e[1;33m'"$spin_check"'\e[0m.            \n'
 
 printf '          \e[1;33m4.\e[0m Отключение процесса ErrorReport \e[1;33m'"$err_check"'\e[0m.                      \n'
-
-printf '          \e[1;33m5.\e[0m Ускорить автопоявление дока \e[1;33m'"$dock_check"'\e[0m.                          \n'
+printf '          \e[1;33m5.\e[0m Отключение Apple Malware Removal Tool \e[1;33m'"$mrt_chk"'\e[0m.                \n'
 printf '          \e[1;33m6.\e[0m Отключить Dashboard         \e[1;33m'"$dash_check"'\e[0m.                          \n'
-printf '          \e[1;33m7.\e[0m Патч для тильды и бактика \e[1;33m'"$keys_check"'\e[0m.                             \n'
-printf '          \e[1;33m8.\e[0m Удаление Apple Malware Removal Tool \e[1;33m'"$mrt_chk"'\e[0m.                  \n'
+printf '          \e[1;33m7.\e[0m Ускорить автопоявление дока \e[1;33m'"$dock_check"'\e[0m.                          \n'
+printf '          \e[1;33m8.\e[0m Патч для тильды и бактика \e[1;33m'"$keys_check"'\e[0m.                             \n'
 printf '          \e[1;36m9.\e[0m Обновление кекстов для Continuity через интернет                 \n'
-printf '          \e[1;36mA.\e[0m Применить все изменения пунктов с \e[1;33m1.\e[0m по \e[1;33m8.\e[0m                       \n'
+printf '          \e[1;36mA.\e[0m Применить все изменения пунктов с \e[1;33m1.\e[0m по \e[1;33m7.\e[0m                       \n'
 printf '          \e[1;36mB.\e[0m Отменить все изменения пунктов с \e[1;33m1.\e[0m по \e[1;33m8.\e[0m                        \n'
 printf '          \e[1;36mС.\e[0m Хранить пароль в программе                                       \n'
 printf ' %.0s' {1..80}
@@ -822,14 +861,14 @@ CHECK_DASH
 sleep 0.3
 printf '  \e[1;32mOK!\e[0m \n'
 
-printf '     Прописываем тильду и бактик       ... '
-printf '     Прописываем тильду и бактик       ...   \e[1;32mOK!\e[0m \n' >> ~/.pi_temp.txt
-CHECK_KEYS
-        if [[ ! $keys_check = "сделан" ]]; then
-            SET_KEYS
-        fi
-sleep 0.3
-printf '  \e[1;32mOK!\e[0m \n'
+#printf '     Прописываем тильду и бактик       ... '
+#printf '     Прописываем тильду и бактик       ...   \e[1;32mOK!\e[0m \n' >> ~/.pi_temp.txt
+#CHECK_KEYS
+#        if [[ ! $keys_check = "сделан" ]]; then
+#            SET_KEYS
+#        fi
+#sleep 0.3
+#printf '  \e[1;32mOK!\e[0m \n'
 
 printf '     Отключаем MRT                     ... '
 printf '     Отключаем MRT                     ...   \e[1;32mOK!\e[0m \n' >> ~/.pi_temp.txt
@@ -1241,6 +1280,11 @@ login=`cat ~/.auth/auth.plist | grep -Eo "LoginPassword"  | tr -d '\n'`
 
 }
 ######################################## MAIN ##########################################################################################
+free_lines=7
+init_password=1
+GET_PASSWORD
+if [[ $init_password = 1 ]]; then clear; fi  
+init_password=0
 
 var4=0
 while [ $var4 != 1 ] 
@@ -1313,7 +1357,8 @@ if [[ $inputs = 2 ]]; then
                 SET_WHITELIST
             fi
         if [[ $legal = 0 ]]; then 
-            printf '\n\n  Этой модели Mac нет в чёрном списке для Continuity.\n'
+            printf '\n\n  \e[1;32mУ этой мадели Maс есть официально поддержка Continuity !\e[0m\n'
+            read -t 2 -s
         else
                     printf '\n\n  Необходимо обновить кэш системных сценариев.\n' 
                     printf '\n  Выполнить? ( Y/n ) '
@@ -1375,7 +1420,7 @@ if [[ $inputs = 4 ]]; then
   fi
 fi
 
-if [[ $inputs = 5 ]]; then
+if [[ $inputs = 7 ]]; then
         CHECK_AUTODOCK
         if [[ $dock = 0 ]]; then
             UNSET_AUTODOCK
@@ -1394,7 +1439,7 @@ if [[ $inputs = 6 ]]; then
     fi
 fi
 
-if [[ $inputs = 7 ]]; then
+if [[ $inputs = 8 ]]; then
     CHECK_KEYS
         if [[ $keys_check = "сделан" ]]; then
             UNSET_KEYS
@@ -1407,7 +1452,7 @@ if [[ $inputs = 7 ]]; then
     
 fi
 
-if [[ $inputs = 8 ]]; then
+if [[ $inputs = 5 ]]; then
         GET_PASSWORD
     if [[ ! $PASSWORD = "" ]]; then
         CHECK_MRT
