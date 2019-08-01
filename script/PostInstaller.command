@@ -33,7 +33,7 @@ printf "\033[?25l"
 
 printf '\e[2m************** \e[0m\e[36mНастройка после установки мак ос на макбук 6,1/7,1\e[0m\e[2m **************\e[0m\n'
 printf '\e[2m****** \e[0m\e[36mНаличие модуля Bluetooth HCI 4.0+ c LE для continuity обязательно\e[0m\e[2m *******\e[0m\n'
-printf '\e[2m**************.................. \e[0m\e[36mВерсия 1,2\e[0m\e[2m ......................**************\e[0m\n'
+printf '\e[2m**************.................. \e[0m\e[36mВерсия 1,3\e[0m\e[2m ......................**************\e[0m\n'
 
 printf '\n\e[2m                       Версия '
 printf "`sw_vers -productName`"
@@ -43,8 +43,20 @@ printf "`sw_vers -buildVersion`"
 printf ') '
 printf '     \n\n\e[0m'
 
+vstr=`sw_vers -productVersion` 
+vstr=`echo ${vstr//[^0-9]/}`
+vstr=${vstr:0:4}
+
+csrset=""
+
+if [ "$vstr" = "1015" ]; then
+csrset1=$(csrutil status | egrep "Kext Signing:" | grep -ow "disabled")
+csrset2=$(csrutil status | egrep "Filesystem Protections:" | grep -ow "disabled")
+csrset3=$(csrutil status | egrep "NVRAM Protections:" | grep -ow "disabled")
+    if [[ $csrset1 = "disabled" ]] && [[ $csrset2 = "disabled" ]] && [[ $csrset3 = "disabled" ]]; then csrset="disabled"; fi
+else
 csrset=$(csrutil status | grep "status:" | grep -ow "disabled")
-if [[ ! $csrset = "disabled" ]]; then
+    if [[ ! $csrset = "disabled" ]]; then
         printf '           \e[1;31m!!!\e[0m   \e[1;36m Защита целостности системы включена\e[0m              \e[1;31m!!!\e[0m\n\n'
 		printf '           \e[1;31m!!!\e[0m    \e[33mПродолжение установки невозможно\e[0m                 \e[1;31m!!!\e[0m\n'
 		printf '           \e[1;31m!!!\e[0m    \e[33mПатч Continuity не сработает\e[0m                     \e[1;31m!!!\e[0m\n'
@@ -57,7 +69,14 @@ if [[ ! $csrset = "disabled" ]]; then
 		read  -n 1 -s
         clear
         osascript -e 'tell application "Terminal" to close first window' & exit
-fi 
+    fi 
+fi
+
+urw=0
+
+SET_RW(){
+if [[ $vstr = "1015" ]] && [[ $urw = 0 ]]; then sudo mount -uw / ; urw=1; fi
+}
 
 # Возвращает в переменной TTYcount 0 если наш терминал один
 CHECK_TTY_COUNT(){
@@ -265,7 +284,7 @@ esac
 
 if [[ $legal = 0 ]]; then continuity=1
         else
-scontinuity=`defaults read /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist | grep -A 1 "$board" | grep ContinuitySupport` >&- 2>&-
+scontinuity=`defaults read /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist | grep -A 1 "$board" | grep ContinuitySupport`
 continuity=`echo ${scontinuity//[^0-1]/}`
 fi
 if [[ $continuity = 1 ]]; then bt_check="сделано"; else bt_check="не сделано"; fi
@@ -278,9 +297,9 @@ cache_update=0
     if [[ $legal = 0 ]]; then sleep 0.1
         else 
             if [[ $continuity = 0 ]]; then 
-               cp /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist ~/.                           >&- 2>&-
-               plutil -replace  $board.ContinuitySupport  -bool YES ~/SystemParameters.plist                                                 >&- 2>&-
-               sudo cp ~/SystemParameters.plist /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist >&- 2>&-
+               cp /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist ~/.
+               plutil -replace  $board.ContinuitySupport  -bool YES ~/SystemParameters.plist
+               sudo cp ~/SystemParameters.plist /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist
                 rm -f ~/SystemParameters.plist
                 cache_update=1
             fi
@@ -294,12 +313,13 @@ sleep 0.1
 
 UNSET_WHITELIST(){
 
+
 if [[ $legal = 0 ]]; then sleep 0.1
         else 
             if [[ $continuity = 1 ]]; then 
-               cp /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist ~/.                              >&- 2>&-
-               plutil -replace  $board.ContinuitySupport  -bool NO ~/SystemParameters.plist                                                     >&- 2>&-
-               sudo cp ~/SystemParameters.plist /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist    >&- 2>&-
+               cp /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist ~/.
+               plutil -replace  $board.ContinuitySupport  -bool NO ~/SystemParameters.plist
+               sudo cp ~/SystemParameters.plist /System/Library/Frameworks/IOBluetooth.framework/Versions/A/Resources/SystemParameters.plist
                 rm -f ~/SystemParameters.plist
                 cache_update=1
             fi
@@ -1299,6 +1319,7 @@ if [[ $inputs = 1 ]]; then
         GET_PASSWORD
     if [[ ! $PASSWORD = "" ]]; then
         CLEAR_PLACE
+        SET_RW
             if [[ $conti_check = "установлены" ]]; then
                 printf '\n\n  Удаляем кексты для Continuity'
                 UNSET_CONTINUITY
@@ -1351,14 +1372,14 @@ if [[ $inputs = 2 ]]; then
         GET_PASSWORD
     if [[ ! $PASSWORD = "" ]]; then
         CLEAR_PLACE
+        SET_RW
             if [[ $continuity = 1 ]]; then
                 UNSET_WHITELIST
             else
                 SET_WHITELIST
             fi
         if [[ $legal = 0 ]]; then 
-            printf '\n\n  \e[1;32mУ этой мадели Maс есть официально поддержка Continuity !\e[0m\n'
-            read -t 2 -s
+            printf '\n\n  Этой модели Mac нет в чёрном списке для Continuity.\n'
         else
                     printf '\n\n  Необходимо обновить кэш системных сценариев.\n' 
                     printf '\n  Выполнить? ( Y/n ) '
@@ -1400,6 +1421,7 @@ if [[ $inputs = 3 ]]; then
     GET_PASSWORD
  if [[ ! $PASSWORD = "" ]]; then
     CHECK_SPINDUMP
+    SET_RW
     if [[ $spin_check = "остановлены" ]]; then
         SET_SPINDUMP
     else
@@ -1411,6 +1433,7 @@ fi
 if [[ $inputs = 4 ]]; then
     GET_PASSWORD
  if [[ ! $PASSWORD = "" ]]; then
+    SET_RW
     CHECK_ERROR_REPORT
     if [[ $err_check = "сделано" ]]; then
         SET_ERROR_REPORT
@@ -1455,6 +1478,7 @@ fi
 if [[ $inputs = 5 ]]; then
         GET_PASSWORD
     if [[ ! $PASSWORD = "" ]]; then
+        SET_RW
         CHECK_MRT
             if [[ $mrt = 1 ]]; then
                     UNSET_MRT
@@ -1467,6 +1491,7 @@ fi
 if [[ $inputs = 9 ]]; then
         GET_PASSWORD
     if [[ ! $PASSWORD = "" ]]; then
+        SET_RW
         GET_GITHUB_VERSIONS
         ext=0
         if [[ $net = 1 ]]; then 
@@ -1556,8 +1581,8 @@ fi
 
 
 
-if [[ $inputs = [aA] ]]; then DO_ALL; fi
-if [[ $inputs = [bB] ]]; then UNDO_ALL; fi
+if [[ $inputs = [aA] ]]; then SET_RW; DO_ALL; fi
+if [[ $inputs = [bB] ]]; then SET_RW; UNDO_ALL; fi
 if [[ $inputs = [qQ] ]]; then var4=1; fi
 
 done
