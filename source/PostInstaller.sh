@@ -2,6 +2,8 @@
 
 PASSWORD=""
 
+loc="ru"
+
 MyTTY=`tty | tr -d " dev/\n"`
 if [[ ${MyTTY} = "ttys001" ]]; then
 # Получаем uid и pid первой консоли
@@ -43,20 +45,8 @@ printf "`sw_vers -buildVersion`"
 printf ') '
 printf '     \n\n\e[0m'
 
-vstr=`sw_vers -productVersion` 
-vstr=`echo ${vstr//[^0-9]/}`
-vstr=${vstr:0:4}
-
-csrset=""
-
-if [ "$vstr" = "1015" ]; then
-csrset1=$(csrutil status | egrep "Kext Signing:" | grep -ow "disabled")
-csrset2=$(csrutil status | egrep "Filesystem Protections:" | grep -ow "disabled")
-csrset3=$(csrutil status | egrep "NVRAM Protections:" | grep -ow "disabled")
-    if [[ $csrset1 = "disabled" ]] && [[ $csrset2 = "disabled" ]] && [[ $csrset3 = "disabled" ]]; then csrset="disabled"; fi
-else
 csrset=$(csrutil status | grep "status:" | grep -ow "disabled")
-    if [[ ! $csrset = "disabled" ]]; then
+if [[ ! $csrset = "disabled" ]]; then
         printf '           \e[1;31m!!!\e[0m   \e[1;36m Защита целостности системы включена\e[0m              \e[1;31m!!!\e[0m\n\n'
 		printf '           \e[1;31m!!!\e[0m    \e[33mПродолжение установки невозможно\e[0m                 \e[1;31m!!!\e[0m\n'
 		printf '           \e[1;31m!!!\e[0m    \e[33mПатч Continuity не сработает\e[0m                     \e[1;31m!!!\e[0m\n'
@@ -69,14 +59,7 @@ csrset=$(csrutil status | grep "status:" | grep -ow "disabled")
 		read  -n 1 -s
         clear
         osascript -e 'tell application "Terminal" to close first window' & exit
-    fi 
-fi
-
-urw=0
-
-SET_RW(){
-if [[ $vstr = "1015" ]] && [[ $urw = 0 ]]; then sudo mount -uw / ; urw=1; fi
-}
+fi 
 
 # Возвращает в переменной TTYcount 0 если наш терминал один
 CHECK_TTY_COUNT(){
@@ -97,74 +80,40 @@ if [[ ${TTYcount} = 0  ]]; then   osascript -e 'quit app "terminal.app"' & exit
 fi
 }
 
-GET_AUTH(){
-if [[ -f ~/.auth/auth.plist ]]; then
-      login=`cat ~/.auth/auth.plist | grep -Eo "LoginPassword"  | tr -d '\n'`
-    if [[ $login = "LoginPassword" ]]; then
-PASSWORD=`cat ~/.auth/auth.plist | grep -A 1 "LoginPassword" | grep string | sed -e 's/.*>\(.*\)<.*/\1/' | tr -d '\n'`
-    fi 
-fi 
+SET_TITLE(){
+echo '#!/bin/bash'  >> ${HOME}/.MountEFInoty.sh
+echo '' >> ${HOME}/.MountEFInoty.sh
+echo 'TITLE="MountEFI"' >> ${HOME}/.MountEFInoty.sh
+echo 'SOUND="Submarine"' >> ${HOME}/.MountEFInoty.sh
 }
 
+DISPLAY_NOTIFICATION(){
+echo 'COMMAND="display notification \"${MESSAGE}\" with title \"${TITLE}\" subtitle \"${SUBTITLE}\" sound name \"${SOUND}\""; osascript -e "${COMMAND}"' >> ${HOME}/.MountEFInoty.sh
+echo ' exit' >> ${HOME}/.MountEFInoty.sh
+chmod u+x ${HOME}/.MountEFInoty.sh
+sh ${HOME}/.MountEFInoty.sh
+rm ${HOME}/.MountEFInoty.sh
+}
+
+
 GET_PASSWORD(){
-
-printf '\r\n\n'
-
-if [[ $PASSWORD = "" ]]; then GET_AUTH; fi
-
-if [[ ! $PASSWORD = "" ]]; then
-    if echo $PASSWORD | sudo -Sk printf '' 2>/dev/null; then
-    if [[ $init_password = 1 ]]; then init_password=0; fi
-        printf '\r                                       \r'
-        echo "  Пароль из программы принят"
-    else
-        printf '\r                                       \r'
-        echo "  Пароль из программы не подходит"
-        echo
-        PASSWORD=""
-    fi
+PASSWORD=""
+if (security find-generic-password -a ${USER} -s postinstaller -w) >/dev/null 2>&1; then
+             PASSWORD=$(security find-generic-password -a ${USER} -s efimounter -w)
+             if ! echo $PASSWORD | sudo -Sk printf '' 2>/dev/null; then 
+                    security delete-generic-password -a ${USER} -s postinstaller >/dev/null 2>&1
+                    PASSWORD=""
+                    SET_TITLE
+                        if [[ $loc = "ru" ]]; then
+                        echo 'SUBTITLE="НЕВЕРНЫЙ ПАРОЛЬ УДАЛЁН ИЗ КЛЮЧЕЙ !"; MESSAGE="Подключение разделов EFI НЕ работает"' >> ${HOME}/.MountEFInoty.sh
+                        else
+                        echo 'SUBTITLE="WRONG PASSWORD REMOVED FROM KEYCHAIN !"; MESSAGE="Mount EFI Partitions NOT Available"' >> ${HOME}/.MountEFInoty.sh
+                        fi
+                        DISPLAY_NOTIFICATION 
+             fi
 fi
-if [[ $PASSWORD = "" ]]; then
- var=0
-printf '\r                                             \r'
-attempt=3
-while [[ ! $var = 1 ]]; 
-do
-    CLEAR_PLACE
- printf "\033[?25h"
-printf '\n\n  Введите пароль для продолжения: '
-read -s PASSWORD
-if [[ ! $PASSWORD = "" ]]; then 
-if echo $PASSWORD | sudo -Sk printf '' 2>/dev/null; then 
-    printf '\n\n  Пароль принят \n'
-    var=1
-else
-    printf "\033[?25l"
-    printf '\n\n  Неверный пароль \n'
-    read -n 1 -s -t 1
-    printf '\r\033[2A'
-    printf ' %.0s' {1..80}; printf ' %.0s' {1..80}
-    printf ' %.0s' {1..80}; printf ' %.0s' {1..80}
-    printf '\r\033[4A'
-  if [[ ! $init_password = 1 ]]; then
-    let "attempt--"
-    if [[ $attempt = 0 ]]; then
-        PASSWORD=""
-        var=1
-    fi
-  fi
-fi
-else
-    printf '\r'
-fi
-done
-printf "\033[?25l"
-fi
-
+if [[ $PASSWORD = "" ]];then ENTER_PASSWORD; fi
 echo $PASSWORD | sudo -S printf '' 2>/dev/null
-printf '\r\033[1A'
-printf ' %.0s' {1..80}; printf ' %.0s' {1..80}; printf ' %.0s' {1..80}
-printf '\r\033[3A'
 }
 
 SET_INPUT(){
@@ -312,7 +261,6 @@ sleep 0.1
 }
 
 UNSET_WHITELIST(){
-
 
 if [[ $legal = 0 ]]; then sleep 0.1
         else 
@@ -803,7 +751,7 @@ printf '\e[8;'${lines}';80t' && printf '\e[3J' && printf "\033[0;0H"
 
 printf '\e[2m************** \e[0m\e[36mНастройка после установки мак ос на макбук 6,1/7,1\e[0m\e[2m **************\e[0m\n'
 printf '\e[2m****** \e[0m\e[36mНаличие модуля Bluetooth HCI 4.0+ c LE для continuity обязательно\e[0m\e[2m *******\e[0m\n'
-printf '\e[2m**************.................. \e[0m\e[36mВерсия 1,2\e[0m\e[2m ......................**************\e[0m\n'
+printf '\e[2m**************.................. \e[0m\e[36mВерсия 1,3\e[0m\e[2m ......................**************\e[0m\n'
 
 printf '\n\e[2m                       Версия '
 printf "`sw_vers -productName`"
@@ -1110,8 +1058,8 @@ printf '\n  Проверяем интернет соединение!\n'
         net=1
 printf '\n  Читаем версии кекстов на github .'
 lilu_git=$( curl -s https://api.github.com/repos/acidanthera/Lilu/releases/latest | grep browser_download_url  | grep RELEASE | cut -d '"' -f 4 | rev | cut -d '/' -f1  | rev | sed s/[^0-9]//g | tr -d ' \n\t')
-arpt_git=$(curl -s https://api.github.com/repos/acidanthera/AirportBrcmFixup/releases/latest | grep browser_download_url  | grep RELE | cut -d '"' -f 4 | rev | cut -d '/' -f1  | rev | sed s/[^0-9]//g | tr -d ' \n\t')
-bt_git=$(curl -s https://api.github.com/repos/acidanthera/BT4LEContinuityFixup/releases/latest | grep browser_download_url  | grep EASE | cut -d '"' -f 4 | rev | cut -d '/' -f1  | rev | sed s/[^0-9]//g | tr -d ' \n\t')
+arpt_git=$(curl -s https://api.github.com/repos/acidanthera/AirportBrcmFixup/releases/latest | grep browser_download_url  | grep RELEASE | cut -d '"' -f 4 | rev | cut -d '/' -f1  | rev | sed s/[^0-9]//g | tr -d ' \n\t')
+bt_git=$(curl -s https://api.github.com/repos/acidanthera/BT4LEContinuityFixup/releases/latest | grep browser_download_url  | grep RELEASE | cut -d '"' -f 4 | rev | cut -d '/' -f1  | rev | cut -c 4- | sed s/[^0-9]//g | tr -d ' \n\t')
     else
         net=0
         printf '\n  \e[1;31mИнтернет соединение недоступно !!!\e[0m\n'
@@ -1253,59 +1201,99 @@ trap " " EXIT
 rm -R -f ~/net_kexts        
 }
 
-# Установка/удаление пароля для sudo через конфиг
-SET_USER_PASSWORD(){
-
-login=`cat ~/.auth/auth.plist | grep -Eo "LoginPassword"  | tr -d '\n'`
-    if [[ $login = "LoginPassword" ]]; then
-                printf '\n\n'
-                printf '  \e[35mУдалить\e[0m сохранённый пароль из программы \e[35m?\e[0m \e[1;33m(y/N)\e[0m \n'
-                
-                read  -n 1 -r -s
-                if [[ $REPLY =~ ^[yY]$ ]]; then
-                plutil -remove LoginPassword ~/.auth/auth.plist
-                CLEAR_PLACE
-                printf '\n\n'
-                printf '  \e[35mПароль удалён.\e[0m нажмите любую клавишу для выхода в меню ...\n'
-                read -n 1 demo
-                fi
+ENTER_PASSWORD(){
+TRY=3
+        while [[ ! $TRY = 0 ]]; do
+        if [[ $loc = "ru" ]]; then
+        if PASSWORD=$(osascript -e 'Tell application "System Events" to display dialog "       Введите пароль: " with hidden answer  default answer ""' -e 'text returned of result'); then cansel=0; else cansel=1; fi 2>/dev/null
         else
-                var2=3
-                while [[ ! $var2 = 0 ]] 
-                do
-                CLEAR_PLACE
-                printf "\033[?25h"
-                printf '\n\n  Введите ваш пароль для постоянного хранения: '
-                read -s mypassword
-                printf "\033[?25l"
-                if [[ $mypassword = "" ]]; then mypassword="?"; fi
-                if echo $mypassword | sudo -Sk printf '' 2>/dev/null; then
-                var2=0
-                plutil -replace LoginPassword -string $mypassword ~/.auth/auth.plist
+        if PASSWORD=$(osascript -e 'Tell application "System Events" to display dialog "       Enter password: " with hidden answer  default answer ""' -e 'text returned of result'); then cansel=0; else cansel=1; fi 2>/dev/null
+        fi      
+                if [[ $cansel = 1 ]]; then break; fi  
                 
-                printf '\n\n  Пароль \e[32m'$mypassword'\e[0m сохранён.                \n'
-                PASSWORD="${mypassword}"
-                read -n 1 -s -t 2
+                if [[ $PASSWORD = "" ]]; then PASSWORD="?"; fi
+
+                if echo $PASSWORD | sudo -Sk printf '' 2>/dev/null; then
+                    security add-generic-password -a ${USER} -s postinstaller -w ${PASSWORD} >/dev/null 2>&1
+                        SET_TITLE
+                        if [[ $loc = "ru" ]]; then
+                        echo 'SUBTITLE="ПАРОЛЬ СОХРАНЁН В СВЯЗКЕ КЛЮЧЕЙ !"; MESSAGE=""' >> ${HOME}/.MountEFInoty.sh
+                        else
+                        echo 'SUBTITLE="PASSWORD KEEPED IN KEYCHAIN !"; MESSAGE=""' >> ${HOME}/.MountEFInoty.sh
+                        fi
+                        DISPLAY_NOTIFICATION
+                        break
                 else
-                printf '\n\n  Не верный пароль \e[33m'$mypassword'\e[0m не сохранён.      \n'
-                let "var2--"
-                read -n 1 -s -t 2
-                 
-            fi 
-                 done
-                 CLEAR_PLACE
+                        let "TRY--"
+                        if [[ ! $TRY = 0 ]]; then 
+                        SET_TITLE
+                            if [[ $loc = "ru" ]]; then
+                        if [[ $TRY = 2 ]]; then ATTEMPT="ПОПЫТКИ"; LAST="ОСТАЛОСЬ"; fi
+                        if [[ $TRY = 1 ]]; then ATTEMPT="ПОПЫТКА"; LAST="ОСТАЛАСЬ"; fi
+                        echo 'SUBTITLE="НЕВЕРНЫЙ ПАРОЛЬ. '$LAST' '$TRY' '$ATTEMPT' !"; MESSAGE=""' >> ${HOME}/.MountEFInoty.sh
+                            else
+                        if [[ $TRY = 2 ]]; then ATTEMPT="ATTEMPTS"; fi
+                        if [[ $TRY = 1 ]]; then ATTEMPT="ATTEMPT"; fi
+                        echo 'SUBTITLE="INCORRECT PASSWORD. LEFT '$TRY' '$ATTEMPT' !"; MESSAGE=""' >> ${HOME}/.MountEFInoty.sh
+                            fi
+                DISPLAY_NOTIFICATION
+                fi
+                fi
+            done
+            PASSWORD="0"
+if (security find-generic-password -a ${USER} -s postinstaller -w) >/dev/null 2>&1; then
+                PASSWORD=$(security find-generic-password -a ${USER} -s postinstaller -w); 
+fi
+            if [[ "$PASSWORD" = "0" ]]; then
+                SET_TITLE
+                    if [[ $loc = "ru" ]]; then
+                echo 'SUBTITLE="ПАРОЛЬ НЕ ПОЛУЧЕН !"; MESSAGE=""' >> ${HOME}/.MountEFInoty.sh
+                    else
+                echo 'SUBTITLE="PASSWORD NOT KEEPED IN KEYCHAIN !"; MESSAGE=""' >> ${HOME}/.MountEFInoty.sh
+                    fi
+                DISPLAY_NOTIFICATION
                 
         fi
-    
+
+}
+
+SET_USER_PASSWORD(){
+if (security find-generic-password -a ${USER} -s postinstaller -w) >/dev/null 2>&1; then 
+                printf '\r'; printf "%"80"s"
+                printf '\r'
+                if [[ $loc = "ru" ]]; then
+                echo "  удалить сохранённый пароль из программы?"
+                        else
+                echo "  delete saved password from this programm?"
+                    fi
+                read -p "  (y/N) " -n 1 -r -s
+                if [[ $REPLY =~ ^[yY]$ ]]; then
+                security delete-generic-password -a ${USER} -s postinstaller >/dev/null 2>&1
+                if [[ $loc = "ru" ]]; then
+                echo "  пароль удалён. "
+                        else
+                echo "  password removed. "
+                    fi
+                read -n 1 -s -t 1
+                fi
+        else
+                
+            ENTER_PASSWORD
+
+        
+    fi
+
+osascript -e 'tell application "Terminal" to activate'
 
 }
 ######################################## MAIN ##########################################################################################
 free_lines=7
 init_password=1
 GET_PASSWORD
-if [[ $init_password = 1 ]]; then clear; fi  
-init_password=0
-
+if [[ "$PASSWORD" = "" ]] || [[ "$PASSWORD" = "0" ]]; then 
+SET_TITLE
+echo 'SUBTITLE="БЕЗ ПАРОЛЯ ПРОДОЛЖЕНИЕ НЕВОЗМОЖНО !"; MESSAGE="Запустите программу снова и введите пароль"' >> ${HOME}/.MountEFInoty.sh
+DISPLAY_NOTIFICATION; EXIT_PROGRAM; fi
 var4=0
 while [ $var4 != 1 ] 
 do
@@ -1319,7 +1307,6 @@ if [[ $inputs = 1 ]]; then
         GET_PASSWORD
     if [[ ! $PASSWORD = "" ]]; then
         CLEAR_PLACE
-        SET_RW
             if [[ $conti_check = "установлены" ]]; then
                 printf '\n\n  Удаляем кексты для Continuity'
                 UNSET_CONTINUITY
@@ -1372,7 +1359,6 @@ if [[ $inputs = 2 ]]; then
         GET_PASSWORD
     if [[ ! $PASSWORD = "" ]]; then
         CLEAR_PLACE
-        SET_RW
             if [[ $continuity = 1 ]]; then
                 UNSET_WHITELIST
             else
@@ -1421,7 +1407,6 @@ if [[ $inputs = 3 ]]; then
     GET_PASSWORD
  if [[ ! $PASSWORD = "" ]]; then
     CHECK_SPINDUMP
-    SET_RW
     if [[ $spin_check = "остановлены" ]]; then
         SET_SPINDUMP
     else
@@ -1433,7 +1418,6 @@ fi
 if [[ $inputs = 4 ]]; then
     GET_PASSWORD
  if [[ ! $PASSWORD = "" ]]; then
-    SET_RW
     CHECK_ERROR_REPORT
     if [[ $err_check = "сделано" ]]; then
         SET_ERROR_REPORT
@@ -1478,7 +1462,6 @@ fi
 if [[ $inputs = 5 ]]; then
         GET_PASSWORD
     if [[ ! $PASSWORD = "" ]]; then
-        SET_RW
         CHECK_MRT
             if [[ $mrt = 1 ]]; then
                     UNSET_MRT
@@ -1491,7 +1474,6 @@ fi
 if [[ $inputs = 9 ]]; then
         GET_PASSWORD
     if [[ ! $PASSWORD = "" ]]; then
-        SET_RW
         GET_GITHUB_VERSIONS
         ext=0
         if [[ $net = 1 ]]; then 
@@ -1581,8 +1563,8 @@ fi
 
 
 
-if [[ $inputs = [aA] ]]; then SET_RW; DO_ALL; fi
-if [[ $inputs = [bB] ]]; then SET_RW; UNDO_ALL; fi
+if [[ $inputs = [aA] ]]; then DO_ALL; fi
+if [[ $inputs = [bB] ]]; then UNDO_ALL; fi
 if [[ $inputs = [qQ] ]]; then var4=1; fi
 
 done
@@ -1590,7 +1572,6 @@ done
 clear
 
 EXIT_PROGRAM
-
 
 
 
