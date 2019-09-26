@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 PASSWORD=""
 
 loc="ru"
@@ -99,11 +100,11 @@ rm ${HOME}/.MountEFInoty.sh
 GET_PASSWORD(){
 PASSWORD=""
 if (security find-generic-password -a ${USER} -s postinstaller -w) >/dev/null 2>&1; then
-             PASSWORD=$(security find-generic-password -a ${USER} -s efimounter -w)
+             PASSWORD=$(security find-generic-password -a ${USER} -s postinstaller -w)
              if ! echo $PASSWORD | sudo -Sk printf '' 2>/dev/null; then 
                     security delete-generic-password -a ${USER} -s postinstaller >/dev/null 2>&1
                     PASSWORD=""
-                    SET_TITLE
+                        SET_TITLE
                         if [[ $loc = "ru" ]]; then
                         echo 'SUBTITLE="НЕВЕРНЫЙ ПАРОЛЬ УДАЛЁН ИЗ КЛЮЧЕЙ !"; MESSAGE="Подключение разделов EFI НЕ работает"' >> ${HOME}/.MountEFInoty.sh
                         else
@@ -112,8 +113,21 @@ if (security find-generic-password -a ${USER} -s postinstaller -w) >/dev/null 2>
                         DISPLAY_NOTIFICATION 
              fi
 fi
-if [[ $PASSWORD = "" ]];then ENTER_PASSWORD; fi
+if [[ $PASSWORD = "" ]]; then ENTER_PASSWORD; fi 
+if [[ $PASSWORD = "" ]]; then 
+
+                        SET_TITLE
+                        if [[ $loc = "ru" ]]; then
+                        echo 'SUBTITLE="БЕЗ ПАРОЛЯ ПРОГРАММА НЕ ФУНКЦИОНАЛЬНА !"; MESSAGE="Выполнение программы прекращено .... "' >> ${HOME}/.MountEFInoty.sh
+                        else
+                        echo 'SUBTITLE="WRONG PASSWORD REMOVED FROM KEYCHAIN !"; MESSAGE="Mount EFI Partitions NOT Available"' >> ${HOME}/.MountEFInoty.sh
+                        fi
+                        DISPLAY_NOTIFICATION 
+                        EXIT_PROGRAM
+ fi
+
 echo $PASSWORD | sudo -S printf '' 2>/dev/null
+
 }
 
 SET_INPUT(){
@@ -548,7 +562,7 @@ if [[  $(sudo launchctl list | grep "com.apple.tailspind" | cut -f3 | grep -x "c
 }
 
 UNSET_SPINDUMP(){
-if [[  $(launchctl list | grep com.apple.spindump_agent) ]]; then launchctl unload -w /System/Library/LaunchAgents/com.apple.spindump_agent.plist; fi 
+if [[  $(launchctl list | grep com.apple.spindump_agent) ]]; then launchctl unload -w /System/Library/LaunchAgents/com.apple.spindump_agent.plist; fi
 if [[  $(sudo launchctl list | grep "com.apple.spindump" | cut -f3 | grep -x "com.apple.spindump") ]]; then sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.spindump.plist; fi 
 if [[  $(sudo launchctl list | grep "com.apple.tailspind" | cut -f3 | grep -x "com.apple.tailspind") ]]; then sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.tailspind.plist; fi 
 sleep 0.1
@@ -1288,7 +1302,6 @@ osascript -e 'tell application "Terminal" to activate'
 }
 ######################################## MAIN ##########################################################################################
 free_lines=7
-init_password=1
 GET_PASSWORD
 if [[ "$PASSWORD" = "" ]] || [[ "$PASSWORD" = "0" ]]; then 
 SET_TITLE
@@ -1299,13 +1312,13 @@ while [ $var4 != 1 ]
 do
 printf '\e[3J' && printf "\033[0;0H" 
 printf "\033[?25l"
+#sleep 0.5
 SHOW_MENU
 GET_INPUT
-
 if [[ $inputs = 1 ]]; then
         CHECK_CONTINUITY
         GET_PASSWORD
-    if [[ ! $PASSWORD = "" ]]; then
+    if [[ ! $PASSWORD = "" ]] || [[ ! "$PASSWORD" = "0" ]]; then
         CLEAR_PLACE
             if [[ $conti_check = "установлены" ]]; then
                 printf '\n\n  Удаляем кексты для Continuity'
@@ -1548,15 +1561,6 @@ fi
 
 
 if [[ $inputs = [cC] ]]; then
-
-    if [[ ! -d ~/.auth ]]; then mkdir ~/.auth
-            echo '<?xml version="1.0" encoding="UTF-8"?>' >> ~/.auth/auth.plist
-            echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' >> ~/.auth/auth.plist
-            echo '<plist version="1.0">' >> ~/.auth/auth.plist
-            echo '<dict>' >> ~/.auth/auth.plist
-            echo '</dict>' >> ~/.auth/auth.plist
-            echo '</plist>' >> ~/.auth/auth.plist
-     fi
     
     SET_USER_PASSWORD
 fi
