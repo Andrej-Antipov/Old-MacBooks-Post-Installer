@@ -1,9 +1,18 @@
 #!/bin/bash
 
+cd "$(dirname "$0")"; ROOT="$(dirname "$0")"
 
 PASSWORD=""
 
 loc="ru"
+
+
+icon_string=""
+if [[ -f Evermor-Design-Galaxian-Mac.icns ]]; then 
+   icon_string=' with icon file "'"$(echo "$(diskutil info $(df / | tail -1 | cut -d' ' -f 1 ) |  grep "Volume Name:" | cut -d':'  -f 2 | xargs)")"''"$(echo "${ROOT}" | tr "/" ":" | xargs)"':Evermor-Design-Galaxian-Mac.icns"'
+fi 
+
+
 
 MyTTY=`tty | tr -d " dev/\n"`
 if [[ ${MyTTY} = "ttys001" ]]; then
@@ -73,7 +82,8 @@ let "TTYcount=AllTTYcount-MyTTYcount"
 ################## Выход из программы с проверкой - выгружать терминал из трея или нет #####################################################
 EXIT_PROGRAM(){
 ################################## очистка на выходе #############################################################
-cat  ~/.bash_history | sed -n '/PostInstaller/!p' >> ~/new_hist.txt; rm ~/.bash_history; mv ~/new_hist.txt ~/.bash_history
+if [[ -f ~/.bash_history ]]; then cat  ~/.bash_history | sed -n '/PostInstaller/!p' >> ~/new_hist.txt; rm ~/.bash_history; mv ~/new_hist.txt ~/.bash_history ; fi
+if [[ -f ~/.zsh_history ]]; then cat  ~/.zsh_history | sed -n '/PostInstaller/!p' >> ~/new_hist.txt; rm ~/.zsh_history; mv ~/new_hist.txt ~/.zsh_history ; fi
 #####################################################################################################################
 CHECK_TTY_COUNT	
 if [[ ${TTYcount} = 0  ]]; then   osascript -e 'quit app "terminal.app"' & exit
@@ -82,21 +92,24 @@ if [[ ${TTYcount} = 0  ]]; then   osascript -e 'quit app "terminal.app"' & exit
 fi
 }
 
-SET_TITLE(){
-echo '#!/bin/bash'  >> ${HOME}/.MountEFInoty.sh
-echo '' >> ${HOME}/.MountEFInoty.sh
-echo 'TITLE="MountEFI"' >> ${HOME}/.MountEFInoty.sh
-echo 'SOUND="Submarine"' >> ${HOME}/.MountEFInoty.sh
-}
+#SET_TITLE(){
+#echo '#!/bin/bash'  >> ${HOME}/.MountEFInoty.sh
+#echo '' >> ${HOME}/.MountEFInoty.sh
+#echo 'TITLE="MountEFI"' >> ${HOME}/.MountEFInoty.sh
+#echo 'SOUND="Submarine"' >> ${HOME}/.MountEFInoty.sh
+#}
+
+#DISPLAY_NOTIFICATION(){
+#echo 'COMMAND="display notification \"${MESSAGE}\" with title \"${TITLE}\" subtitle \"${SUBTITLE}\" sound name \"${SOUND}\""; osascript -e "${COMMAND}"' >> ${HOME}/.MountEFInoty.sh
+#echo ' exit' >> ${HOME}/.MountEFInoty.sh
+#chmod u+x ${HOME}/.MountEFInoty.sh
+#sh ${HOME}/.MountEFInoty.sh
+#rm ${HOME}/.MountEFInoty.sh
+#}
 
 DISPLAY_NOTIFICATION(){
-echo 'COMMAND="display notification \"${MESSAGE}\" with title \"${TITLE}\" subtitle \"${SUBTITLE}\" sound name \"${SOUND}\""; osascript -e "${COMMAND}"' >> ${HOME}/.MountEFInoty.sh
-echo ' exit' >> ${HOME}/.MountEFInoty.sh
-chmod u+x ${HOME}/.MountEFInoty.sh
-sh ${HOME}/.MountEFInoty.sh
-rm ${HOME}/.MountEFInoty.sh
+"${ROOT}"/tools/terminal-notifier.app/Contents/MacOS/terminal-notifier -sound Submarine -title "MacPostInstaller" -subtitle "${SUBTITLE}" -message "${MESSAGE}" 
 }
-
 
 GET_PASSWORD(){
 PASSWORD=""
@@ -105,11 +118,11 @@ if (security find-generic-password -a ${USER} -s postinstaller -w) >/dev/null 2>
              if ! echo $PASSWORD | sudo -Sk printf '' 2>/dev/null; then 
                     security delete-generic-password -a ${USER} -s postinstaller >/dev/null 2>&1
                     PASSWORD=""
-                        SET_TITLE
+                        #SET_TITLE
                         if [[ $loc = "ru" ]]; then
-                        echo 'SUBTITLE="НЕВЕРНЫЙ ПАРОЛЬ УДАЛЁН ИЗ КЛЮЧЕЙ !"; MESSAGE="Подключение разделов EFI НЕ работает"' >> ${HOME}/.MountEFInoty.sh
+                        SUBTITLE="НЕВЕРНЫЙ ПАРОЛЬ УДАЛЁН ИЗ КЛЮЧЕЙ !"; MESSAGE=""
                         else
-                        echo 'SUBTITLE="WRONG PASSWORD REMOVED FROM KEYCHAIN !"; MESSAGE="Mount EFI Partitions NOT Available"' >> ${HOME}/.MountEFInoty.sh
+                        SUBTITLE="WRONG PASSWORD REMOVED FROM KEYCHAIN !"; MESSAGE=""
                         fi
                         DISPLAY_NOTIFICATION 
              fi
@@ -117,11 +130,11 @@ fi
 if [[ $PASSWORD = "" ]]; then ENTER_PASSWORD; fi 
 if [[ $PASSWORD = "" ]]; then 
 
-                        SET_TITLE
+                        #SET_TITLE
                         if [[ $loc = "ru" ]]; then
-                        echo 'SUBTITLE="БЕЗ ПАРОЛЯ ПРОГРАММА НЕ ФУНКЦИОНАЛЬНА !"; MESSAGE="Выполнение программы прекращено .... "' >> ${HOME}/.MountEFInoty.sh
+                        SUBTITLE="БЕЗ ПАРОЛЯ ПРОГРАММА НЕ ФУНКЦИОНАЛЬНА !"; MESSAGE="Выполнение программы прекращено .... "
                         else
-                        echo 'SUBTITLE="WRONG PASSWORD REMOVED FROM KEYCHAIN !"; MESSAGE="Mount EFI Partitions NOT Available"' >> ${HOME}/.MountEFInoty.sh
+                        SUBTITLE="WRONG PASSWORD REMOVED FROM KEYCHAIN !"; MESSAGE=""
                         fi
                         DISPLAY_NOTIFICATION 
                         EXIT_PROGRAM
@@ -146,7 +159,7 @@ case ${layout_name} in
  esac
 
 if [[ $xkbs = 2 ]]; then 
-cd $(dirname $0)
+cd "$(dirname "$0")"
     if [[ -f "./tools/xkbswitch" ]]; then 
 declare -a layouts_names
 layouts=`defaults read ~/Library/Preferences/com.apple.HIToolbox.plist AppleInputSourceHistory | egrep -w 'KeyboardLayout Name' | sed -E 's/.+ = "?([^"]+)"?;/\1/' | tr  '\n' ';'`
@@ -1212,9 +1225,9 @@ ENTER_PASSWORD(){
 TRY=3
         while [[ ! $TRY = 0 ]]; do
         if [[ $loc = "ru" ]]; then
-        if PASSWORD=$(osascript -e 'Tell application "System Events" to display dialog "       Введите пароль: " with hidden answer  default answer ""' -e 'text returned of result'); then cansel=0; else cansel=1; fi 2>/dev/null
+        if PASSWORD=$(osascript -e 'Tell application "System Events" to display dialog "       Введите пароль: " '"${icon_string}"' with hidden answer  default answer ""' -e 'text returned of result'); then cansel=0; else cansel=1; fi 2>/dev/null
         else
-        if PASSWORD=$(osascript -e 'Tell application "System Events" to display dialog "       Enter password: " with hidden answer  default answer ""' -e 'text returned of result'); then cansel=0; else cansel=1; fi 2>/dev/null
+        if PASSWORD=$(osascript -e 'Tell application "System Events" to display dialog "       Enter password: " '"${icon_string}"' with hidden answer  default answer ""' -e 'text returned of result'); then cansel=0; else cansel=1; fi 2>/dev/null
         fi      
                 if [[ $cansel = 1 ]]; then break; fi  
                 
@@ -1222,26 +1235,26 @@ TRY=3
 
                 if echo $PASSWORD | sudo -Sk printf '' 2>/dev/null; then
                     security add-generic-password -a ${USER} -s postinstaller -w ${PASSWORD} >/dev/null 2>&1
-                        SET_TITLE
+                        #SET_TITLE
                         if [[ $loc = "ru" ]]; then
-                        echo 'SUBTITLE="ПАРОЛЬ СОХРАНЁН В СВЯЗКЕ КЛЮЧЕЙ !"; MESSAGE=""' >> ${HOME}/.MountEFInoty.sh
+                        SUBTITLE="ПАРОЛЬ СОХРАНЁН В СВЯЗКЕ КЛЮЧЕЙ !"; MESSAGE=""
                         else
-                        echo 'SUBTITLE="PASSWORD KEEPED IN KEYCHAIN !"; MESSAGE=""' >> ${HOME}/.MountEFInoty.sh
+                        SUBTITLE="PASSWORD KEEPED IN KEYCHAIN !"; MESSAGE=""
                         fi
                         DISPLAY_NOTIFICATION
                         break
                 else
                         let "TRY--"
                         if [[ ! $TRY = 0 ]]; then 
-                        SET_TITLE
+                        #SET_TITLE
                             if [[ $loc = "ru" ]]; then
                         if [[ $TRY = 2 ]]; then ATTEMPT="ПОПЫТКИ"; LAST="ОСТАЛОСЬ"; fi
                         if [[ $TRY = 1 ]]; then ATTEMPT="ПОПЫТКА"; LAST="ОСТАЛАСЬ"; fi
-                        echo 'SUBTITLE="НЕВЕРНЫЙ ПАРОЛЬ. '$LAST' '$TRY' '$ATTEMPT' !"; MESSAGE=""' >> ${HOME}/.MountEFInoty.sh
+                        SUBTITLE="НЕВЕРНЫЙ ПАРОЛЬ. $LAST $TRY $ATTEMPT !"; MESSAGE=""
                             else
                         if [[ $TRY = 2 ]]; then ATTEMPT="ATTEMPTS"; fi
                         if [[ $TRY = 1 ]]; then ATTEMPT="ATTEMPT"; fi
-                        echo 'SUBTITLE="INCORRECT PASSWORD. LEFT '$TRY' '$ATTEMPT' !"; MESSAGE=""' >> ${HOME}/.MountEFInoty.sh
+                        SUBTITLE="INCORRECT PASSWORD. LEFT $TRY $ATTEMPT !"; MESSAGE=""
                             fi
                 DISPLAY_NOTIFICATION
                 fi
@@ -1252,11 +1265,11 @@ if (security find-generic-password -a ${USER} -s postinstaller -w) >/dev/null 2>
                 PASSWORD=$(security find-generic-password -a ${USER} -s postinstaller -w); 
 fi
             if [[ "$PASSWORD" = "0" ]]; then
-                SET_TITLE
+                #SET_TITLE
                     if [[ $loc = "ru" ]]; then
-                echo 'SUBTITLE="ПАРОЛЬ НЕ ПОЛУЧЕН !"; MESSAGE=""' >> ${HOME}/.MountEFInoty.sh
+                SUBTITLE="ПАРОЛЬ НЕ ПОЛУЧЕН !"; MESSAGE=""
                     else
-                echo 'SUBTITLE="PASSWORD NOT KEEPED IN KEYCHAIN !"; MESSAGE=""' >> ${HOME}/.MountEFInoty.sh
+                SUBTITLE="PASSWORD NOT KEEPED IN KEYCHAIN !"; MESSAGE=""
                     fi
                 DISPLAY_NOTIFICATION
                 
@@ -1297,8 +1310,8 @@ osascript -e 'tell application "Terminal" to activate'
 free_lines=7
 GET_PASSWORD
 if [[ "$PASSWORD" = "" ]] || [[ "$PASSWORD" = "0" ]]; then 
-SET_TITLE
-echo 'SUBTITLE="БЕЗ ПАРОЛЯ ПРОДОЛЖЕНИЕ НЕВОЗМОЖНО !"; MESSAGE="Запустите программу снова и введите пароль"' >> ${HOME}/.MountEFInoty.sh
+#SET_TITLE
+SUBTITLE="БЕЗ ПАРОЛЯ ПРОДОЛЖЕНИЕ НЕВОЗМОЖНО !"; MESSAGE="Запустите программу снова и введите пароль"
 DISPLAY_NOTIFICATION; EXIT_PROGRAM; fi
 var4=0
 while [ $var4 != 1 ] 
