@@ -1,18 +1,19 @@
 #!/bin/bash
 
+clear
+
 cd "$(dirname "$0")"; ROOT="$(dirname "$0")"
 
 PASSWORD=""
 
 loc="ru"
 
+macos=$(sw_vers -productVersion | tr -d .); macos=${macos:0:5}; if [[ ${#macos} = 3 ]]; then macos+="00"; fi
 
 icon_string=""
 if [[ -f Evermor-Design-Galaxian-Mac.icns ]]; then 
    icon_string=' with icon file "'"$(echo "$(diskutil info $(df / | tail -1 | cut -d' ' -f 1 ) |  grep "Volume Name:" | cut -d':'  -f 2 | xargs)")"''"$(echo "${ROOT}" | tr "/" ":" | xargs)"':Evermor-Design-Galaxian-Mac.icns"'
 fi 
-
-
 
 MyTTY=`tty | tr -d " dev/\n"`
 if [[ ${MyTTY} = "ttys001" ]]; then
@@ -45,7 +46,7 @@ printf "\033[?25l"
 
 printf '\e[2m************** \e[0m\e[36mНастройка после установки мак ос на макбук 6,1/7,1\e[0m\e[2m **************\e[0m\n'
 printf '\e[2m****** \e[0m\e[36mНаличие модуля Bluetooth HCI 4.0+ c LE для continuity обязательно\e[0m\e[2m *******\e[0m\n'
-printf '\e[2m**************.................. \e[0m\e[36mВерсия 1,3\e[0m\e[2m ......................**************\e[0m\n'
+printf '\e[2m**************.................. \e[0m\e[36mВерсия 1,4\e[0m\e[2m ......................**************\e[0m\n'
 
 printf '\n\e[2m                       Версия '
 printf "`sw_vers -productName`"
@@ -92,20 +93,6 @@ if [[ ${TTYcount} = 0  ]]; then   osascript -e 'quit app "terminal.app"' & exit
 fi
 }
 
-#SET_TITLE(){
-#echo '#!/bin/bash'  >> ${HOME}/.MountEFInoty.sh
-#echo '' >> ${HOME}/.MountEFInoty.sh
-#echo 'TITLE="MountEFI"' >> ${HOME}/.MountEFInoty.sh
-#echo 'SOUND="Submarine"' >> ${HOME}/.MountEFInoty.sh
-#}
-
-#DISPLAY_NOTIFICATION(){
-#echo 'COMMAND="display notification \"${MESSAGE}\" with title \"${TITLE}\" subtitle \"${SUBTITLE}\" sound name \"${SOUND}\""; osascript -e "${COMMAND}"' >> ${HOME}/.MountEFInoty.sh
-#echo ' exit' >> ${HOME}/.MountEFInoty.sh
-#chmod u+x ${HOME}/.MountEFInoty.sh
-#sh ${HOME}/.MountEFInoty.sh
-#rm ${HOME}/.MountEFInoty.sh
-#}
 
 DISPLAY_NOTIFICATION(){
 "${ROOT}"/tools/terminal-notifier.app/Contents/MacOS/terminal-notifier -sound Submarine -title "MacPostInstaller" -subtitle "${SUBTITLE}" -message "${MESSAGE}" 
@@ -343,8 +330,9 @@ if [  -f "/Library/Extensions/BT4LEContinuityFixup.kext/Contents/Info.plist" ]; 
         bt4lever=`plutil -p /Library/Extensions/BT4LEContinuityFixup.kext/Contents/Info.plist | grep CFBundleVersion | awk -F"=> " '{print $2}' | cut -c 2- | rev | cut -c 2- | rev`
 fi
 
+if [[ "$macos" -lt "10120" ]]; then
 if [ $liluset == 1 ] && [ $arptset == 1 ] && [ $bt4leset == 1 ]; then conti_check="установлены"; else conti_check="не установлены";  fi
-
+elif [ $liluset == 1 ] && [ $arptset == 1 ]; then conti_check="установлены"; else conti_check="не установлены";  fi
 
 
 }
@@ -382,13 +370,15 @@ airpt_release=$(curl -s https://api.github.com/repos/acidanthera/AirportBrcmFixu
 curl -L -s -o new.zip $airpt_release 2>/dev/null
 unzip  -o -qq new.zip 2>/dev/null
 if [[ -d AirportBrcmFixup.kext ]]; then mv AirportBrcmFixup.kext ../AirportBrcmFixup.kext; fi
-cd ..
-rm -R -f temp/*
-cd temp 
-bt4le=$(curl -s https://api.github.com/repos/acidanthera/BT4LEContinuityFixup/releases/latest | grep browser_download_url  | grep RELEASE | cut -d '"' -f 4)
-curl -L -s -o new.zip $bt4le 2>/dev/null
-unzip  -o -qq new.zip 2>/dev/null
-if [[ -d BT4LEContinuityFixup.kext ]]; then mv BT4LEContinuityFixup.kext ../BT4LEContinuityFixup.kext; fi
+if [[ "$macos" -lt "10120" ]]; then
+    cd ..
+    rm -R -f temp/*
+    cd temp 
+    bt4le=$(curl -s https://api.github.com/repos/acidanthera/BT4LEContinuityFixup/releases/latest | grep browser_download_url  | grep RELEASE | cut -d '"' -f 4)
+    curl -L -s -o new.zip $bt4le 2>/dev/null
+    unzip  -o -qq new.zip 2>/dev/null
+    if [[ -d BT4LEContinuityFixup.kext ]]; then mv BT4LEContinuityFixup.kext ../BT4LEContinuityFixup.kext; fi
+fi
 cd ..
 rm -R temp
 kill $!
@@ -417,13 +407,13 @@ cd ..
     fi
 
 fi
+if [[ "$macos" -lt "10120" ]]; then
+ if [[  -d ~/kexts/Lilu.kext ]] && [[ -d ~/kexts/BT4LEContinuityFixup.kext ]] && [[ -d ~/kexts/AirportBrcmFixup.kext ]]; then ready=1; fi
+elif [[  -d ~/kexts/Lilu.kext ]] && [[ -d ~/kexts/AirportBrcmFixup.kext ]]; then ready=1; fi
 
- if [[  -d ~/kexts/Lilu.kext ]] && [[ -d ~/kexts/BT4LEContinuityFixup.kext ]] && [[ -d ~/kexts/AirportBrcmFixup.kext ]]; then 
-    printf '\n\n  Кексты получены.                                         \n'; sleep 0.5; ready=1
+if [[ $ready = 1 ]]; then
+    printf '\n\n  Кексты получены.                                         \n'; sleep 0.5
     
-
-
-
 CLEAR_PLACE
 printf '\n\n  Устанавливаем кексты для Continuity \n'
 
@@ -482,17 +472,21 @@ sudo chmod -R 755 /Library/Extensions/Lilu.kext
 sleep 0.1
 number=40
 ProgressBar ${number} ${_end}
-sudo cp -R ~/kexts/BT4LEContinuityFixup.kext /Library/Extensions/
-sleep 0.1
-number=50
-ProgressBar ${number} ${_end}
-sudo chown -R 0:0 /Library/Extensions/BT4LEContinuityFixup.kext
-sleep 0.1
-number=60
-ProgressBar ${number} ${_end}
-sudo chmod -R 755 /Library/Extensions/BT4LEContinuityFixup.kext
+if [[ "$macos" -lt "10120" ]]; then sudo cp -R ~/kexts/BT4LEContinuityFixup.kext /Library/Extensions/ ; fi
+    sleep 0.1
+    number=50
+    ProgressBar ${number} ${_end}
+if [[ "$macos" -lt "10120" ]]; then sudo chown -R 0:0 /Library/Extensions/BT4LEContinuityFixup.kext ; fi
+    sleep 0.1
+    number=60
+    ProgressBar ${number} ${_end}
+if [[ "$macos" -lt "10120" ]]; then sudo chmod -R 755 /Library/Extensions/BT4LEContinuityFixup.kext ; fi
 sleep 0.1
 number=70
+ProgressBar ${number} ${_end}
+sudo rm -Rf ~/kexts/AirportBrcmFixup.kext/Contents/PlugIns/AirPortBrcmNIC_Injector.kext
+sleep 0.1
+number=75
 ProgressBar ${number} ${_end}
 sudo cp -R ~/kexts/AirportBrcmFixup.kext /Library/Extensions/
 sleep 0.1
@@ -510,6 +504,7 @@ sleep 0.1
 
 else
     ready=0
+    rm -Rf ~/kexts
     printf  '\n\n    Кексты не загружены. Что-то пошло не так !!!\n'
 
 fi
@@ -762,6 +757,11 @@ printf "\033[?25l"
 
 }
 
+CHECK_PASS(){
+PASS=0
+if (security find-generic-password -a ${USER} -s postinstaller -w) >/dev/null 2>&1; then PASS=1; fi
+}
+
 SHOW_MENU(){
 
 CHECK_CONTINUITY
@@ -772,6 +772,7 @@ CHECK_AUTODOCK
 CHECK_DASH
 CHECK_KEYS
 CHECK_MRT
+CHECK_PASS
 
 free_lines=22
 
@@ -779,7 +780,7 @@ printf '\e[8;'${lines}';80t' && printf '\e[3J' && printf "\033[0;0H"
 
 printf '\e[2m************** \e[0m\e[36mНастройка после установки мак ос на макбук 6,1/7,1\e[0m\e[2m **************\e[0m\n'
 printf '\e[2m****** \e[0m\e[36mНаличие модуля Bluetooth HCI 4.0+ c LE для continuity обязательно\e[0m\e[2m *******\e[0m\n'
-printf '\e[2m**************.................. \e[0m\e[36mВерсия 1,3\e[0m\e[2m ......................**************\e[0m\n'
+printf '\e[2m**************.................. \e[0m\e[36mВерсия 1,4\e[0m\e[2m ......................**************\e[0m\n'
 
 printf '\n\e[2m                       Версия '
 printf "`sw_vers -productName`"
@@ -809,7 +810,11 @@ printf '          \e[1;33m8.\e[0m Патч для тильды и бактика
 printf '          \e[1;36m9.\e[0m Обновление кекстов для Continuity через интернет                 \n'
 printf '          \e[1;36mA.\e[0m Применить все изменения пунктов с \e[1;33m1.\e[0m по \e[1;33m7.\e[0m                       \n'
 printf '          \e[1;36mB.\e[0m Отменить все изменения пунктов с \e[1;33m1.\e[0m по \e[1;33m8.\e[0m                        \n'
-printf '          \e[1;36mС.\e[0m Хранить пароль в программе                                       \n'
+if [[ $PASS = 0 ]]; then
+printf '          \e[1;36mС.\e[0m Сохранить пароль в программе                                     \n'
+else
+printf '          \e[1;36mС.\e[0m Удалить пароль из программы                                      \n'
+fi
 printf '          \e[1;36mU.\e[0m Обновить кэши кекстов и фреймворков                               \n'
 printf ' %.0s' {1..80}
 printf '\n'
@@ -817,7 +822,7 @@ printf '\n'
 
 DO_ALL(){
 rm -f  ~/.pi_temp.txt
-printf '\n\n  Выполнить все исправления по списку с 1 - 8 ( Y/n )? '
+printf '\n\n  Выполнить все исправления по списку с 1 - 7 ( Y/n )? '
 read -n 1 -s 
 if [[ $REPLY =~ ^[yY]$ ]] || [[ $REPLY = "" ]]; then 
 CLEAR_PLACE 
@@ -1079,7 +1084,7 @@ printf '\n  Проверяем интернет соединение!\n'
 printf '\n  Читаем версии кекстов на github .'
 lilu_git=$( curl -s https://api.github.com/repos/acidanthera/Lilu/releases/latest | grep browser_download_url  | grep RELEASE | cut -d '"' -f 4 | rev | cut -d '/' -f1  | rev | sed s/[^0-9]//g | tr -d ' \n\t')
 arpt_git=$(curl -s https://api.github.com/repos/acidanthera/AirportBrcmFixup/releases/latest | grep browser_download_url  | grep RELEASE | cut -d '"' -f 4 | rev | cut -d '/' -f1  | rev | sed s/[^0-9]//g | tr -d ' \n\t')
-bt_git=$(curl -s https://api.github.com/repos/acidanthera/BT4LEContinuityFixup/releases/latest | grep browser_download_url  | grep RELEASE | cut -d '"' -f 4 | rev | cut -d '/' -f1  | rev | cut -c 4- | sed s/[^0-9]//g | tr -d ' \n\t')
+    bt_git=$(curl -s https://api.github.com/repos/acidanthera/BT4LEContinuityFixup/releases/latest | grep browser_download_url  | grep RELEASE | cut -d '"' -f 4 | rev | cut -d '/' -f1  | rev | cut -c 4- | sed s/[^0-9]//g | tr -d ' \n\t')
     else
         net=0
         printf '\n  \e[1;31mИнтернет соединение недоступно !!!\e[0m\n'
@@ -1131,11 +1136,9 @@ fi
 }
 
 SHOW_KEXTS_VERSIONS(){
-b_col=33
-if [[ $bt_ver = 0 ]] && [[ ! $bt_git = 0 ]]; then bt_show="можно установить"
-    else
-if [[ $bt_ver -lt $bt_git ]]; then bt_show="можно обновить";  else bt_show="не нужно обновлять"; b_col=32; fi 
-fi
+    b_col=33
+    if [[ $bt_ver = 0 ]] && [[ ! $bt_git = 0 ]]; then bt_show="можно установить"
+    elif [[ $bt_ver -lt $bt_git ]]; then bt_show="можно обновить";  else bt_show="не нужно обновлять"; b_col=32; fi 
 
 l_col=33
 if [[ $lilu_ver = 0 ]] && [[ ! $lilu_git = 0 ]]; then lilu_show="можно установить"
@@ -1153,7 +1156,8 @@ fi
 printf '\n\n  Доступны версии кекстов: \n\n'
 printf '      \e[1;32mLilu.kext\e[0m                  v. '${lilu_git:0:1}'.'${lilu_git:1:1}'.'${lilu_git:2:1}'   \e[1;'$l_col'm'"$lilu_show"'\e[0m\n'
 printf '      \e[1;32mAirportBrcmFixup.kext\e[0m      v. '${arpt_git:0:1}'.'${arpt_git:1:1}'.'${arpt_git:2:1}'   \e[1;'$a_col'm'"$arpt_show"'\e[0m\n'
-printf '      \e[1;32mBT4LEContinuityFixup.kext\e[0m  v. '${bt_git:0:1}'.'${bt_git:1:1}'.'${bt_git:2:1}'   \e[1;'$b_col'm'"$bt_show"'\e[0m\n\n'
+if [[ "$macos" -lt "10120" ]]; then
+printf '      \e[1;32mBT4LEContinuityFixup.kext\e[0m  v. '${bt_git:0:1}'.'${bt_git:1:1}'.'${bt_git:2:1}'   \e[1;'$b_col'm'"$bt_show"'\e[0m\n\n'; fi
 
 }
 
@@ -1209,6 +1213,7 @@ if [[ $a_col = 33 ]]; then
     if [[ -d ~/net_kexts/AirportBrcmFixup.kext ]]; then
         sudo rm -R -f /System/Library/Extensions/AirportBrcmFixup.kext
         sudo rm -R -f /Library/Extensions/AirportBrcmFixup.kext
+        sudo rm -R -f ~/net_kexts/AirportBrcmFixup.kext/Contents/PlugIns/AirPortBrcmNIC_Injector.kext
         sudo mv ~/net_kexts/AirportBrcmFixup.kext /Library/Extensions/AirportBrcmFixup.kext
         sudo chown -R 0:0 /Library/Extensions/AirportBrcmFixup.kext 
         sudo chmod -R 755 /Library/Extensions/AirportBrcmFixup.kext
@@ -1281,20 +1286,36 @@ SET_USER_PASSWORD(){
 if (security find-generic-password -a ${USER} -s postinstaller -w) >/dev/null 2>&1; then 
                 printf '\r'; printf "%"80"s"
                 printf '\r'
+
                 if [[ $loc = "ru" ]]; then
-                echo "  удалить сохранённый пароль из программы?"
-                        else
-                echo "  delete saved password from this programm?"
-                    fi
-                read -p "  (y/N) " -n 1 -r -s
-                if [[ $REPLY =~ ^[yY]$ ]]; then
+                                if answer=$(osascript -e 'display dialog "Удалить пароль из связки ключей?" '"${icon_string}"''); then cancel=0; else cancel=1; fi 2>/dev/null
+                                else
+                                if answer=$(osascript -e 'display dialog "Remove password from keychain?" '"${icon_string}"''); then cancel=0; else cancel=1; fi 2>/dev/null
+                                fi
+                               
+                                if [[ $cancel = 0 ]]; then 
+
+                #if [[ $loc = "ru" ]]; then
+                #echo "  удалить сохранённый пароль из программы?"
+                #        else
+                #echo "  delete saved password from this programm?"
+                #    fi
+                #read -p "  (y/N) " -n 1 -r -s
+                #if [[ $REPLY =~ ^[yY]$ ]]; then
                 security delete-generic-password -a ${USER} -s postinstaller >/dev/null 2>&1
+                #if [[ $loc = "ru" ]]; then
+                #echo "  пароль удалён. "
+                #        else
+                #echo "  password removed. "
+                #    fi
+                #read -n 1 -s -t 1
+                #fi
                 if [[ $loc = "ru" ]]; then
-                echo "  пароль удалён. "
+                        SUBTITLE="ПАРОЛЬ УДАЛЁН ИЗ СВЯЗКИ КЛЮЧЕЙ !"; MESSAGE=""
                         else
-                echo "  password removed. "
-                    fi
-                read -n 1 -s -t 1
+                        SUBTITLE="PASSWORD REMOVED FROM KEYCHAIN !"; MESSAGE=""
+                        fi
+                        DISPLAY_NOTIFICATION
                 fi
         else
                 
@@ -1363,7 +1384,7 @@ if [[ $inputs = 1 ]]; then
                     fi
             printf '\n\n  \e[1;33mИзменения наступят после перезагрузки Mac !\e[0m\n'
             else
-                printf '\n    Загрузите кексты вручную в папку kexts в папке программы\n'
+                printf '\n  Можно загрузить кексты вручную в папку kexts в домашней папке\n'
                 printf '    И повторите установку. \n'
             fi
             printf '\n  Нажмите любую клавишу для возврата к меню \n'
@@ -1500,9 +1521,9 @@ if [[ $inputs = 9 ]]; then
             CLEAR_PLACE
             SHOW_KEXTS_VERSIONS
             if [[ $a_col = 33 ]] || [[ $b_col = 33 ]] || [[ $l_col = 33 ]]; then
-                printf '  Обновить или установить кексты c github ? ( y/N ) '
+                printf '\n  Обновить или установить кексты c github ? ( y/N ) '
                     else
-                printf '  Загрузить и установить кекcты c github ? ( y/N ) '
+                printf '\n  Загрузить и установить кекcты c github ? ( y/N ) '
             fi
                 printf "\033[?25h"
                 read -s -n 1 -r 
@@ -1513,8 +1534,8 @@ if [[ $inputs = 9 ]]; then
                 if [[ $net = 0 ]]; then
                        #printf '\n\n  Интернет соединение недоступно \n'
                         read -p "  Для возврата к меню нажмите любую клавишу      " -n 1 -r
-                        else 
-                    if [[  -d ~/net_kexts/Lilu.kext ]] && [[ -d ~/net_kexts/BT4LEContinuityFixup.kext ]] && [[ -d ~/net_kexts/AirportBrcmFixup.kext ]]; then
+                        else
+                    if ( [[ "$macos" -lt "10120" ]] && [[  -d ~/net_kexts/Lilu.kext ]] && [[ -d ~/net_kexts/BT4LEContinuityFixup.kext ]] && [[ -d ~/net_kexts/AirportBrcmFixup.kext ]] ) || ( [[ "$macos" -ge "10120" ]] && [[  -d ~/net_kexts/Lilu.kext ]] && [[ -d ~/net_kexts/AirportBrcmFixup.kext ]] ); then
                         CLEAR_PLACE
                         printf '\n\n  Кексты получены. Устанавливаем .'
                         UPDATE_KEXTS
